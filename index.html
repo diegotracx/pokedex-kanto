@@ -256,12 +256,67 @@
   .dot-type{ width:9px; height:9px; border-radius:50%; }
 
   .footer-note{ text-align:center; color:rgba(255,255,255,0.35); font-size:10.5px; margin-top:14px; letter-spacing:0.5px; }
+
+  /* ---- Vistas / navegación ---- */
+  .view{ width:100%; }
+  .start-btn{
+    display:block; width:100%;
+    background: var(--gold); color: var(--navy-deep);
+    border:none; border-radius:14px;
+    font-size:15px; font-weight:700; letter-spacing:0.5px;
+    padding:14px; margin-top:4px; cursor:pointer;
+    box-shadow: 0 8px 20px rgba(212,175,55,0.25);
+  }
+  .start-btn:active{ transform: scale(0.98); }
+
+  .gen-header{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .gen-header-title{ font-size:16px; letter-spacing:1px; color:var(--gold); font-weight:700; }
+  .back-btn{
+    background: rgba(255,255,255,0.08); border:1px solid rgba(212,175,55,0.35);
+    color: var(--gold-soft); font-size:13px; font-weight:600;
+    padding:6px 12px; border-radius:10px; cursor:pointer;
+  }
+  .back-btn-device{ margin-right:2px; padding:4px 9px; font-size:14px; }
+
+  .gen-grid{ display:flex; flex-direction:column; gap:10px; }
+  .gen-card{
+    background: linear-gradient(145deg, #16214a, #101a3e);
+    border:1px solid rgba(212,175,55,0.3);
+    border-radius:14px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px;
+    cursor:pointer; transition: border-color 0.15s ease, transform 0.1s ease;
+  }
+  .gen-card:active{ transform: scale(0.98); }
+  .gen-card.disabled{ opacity:0.4; cursor:not-allowed; }
+  .gen-card:not(.disabled):hover{ border-color: var(--gold); }
+  .gen-num{
+    width:40px; height:40px; border-radius:10px;
+    background: var(--gold); color:var(--navy-deep);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:15px; flex:0 0 auto;
+  }
+  .gen-info{ flex:1; }
+  .gen-name{ font-size:14.5px; font-weight:700; }
+  .gen-region{ font-size:11px; color:rgba(255,255,255,0.5); }
+  .gen-status{ font-size:10px; color: var(--gold-soft); font-weight:600; }
+  .gen-card.disabled .gen-status{ color: rgba(255,255,255,0.35); }
+
+  .caught-check{
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:600; color:#5a4c22;
+    margin-bottom:8px; cursor:pointer; user-select:none;
+  }
+  .caught-check input{ width:15px; height:15px; accent-color:#2ecc71; cursor:pointer; }
+  .list-item.caught{ border-color: rgba(46,204,113,0.5); }
+  .list-check{ width:16px; height:16px; accent-color:#2ecc71; flex:0 0 auto; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <!-- ================= PORTADA ================= -->
+  <!-- ================= VISTA: PORTADA ================= -->
+  <div id="view-cover" class="view">
   <div class="cover">
     <div class="cover-inner">
       <div class="cover-stripes"></div>
@@ -280,13 +335,26 @@
       <div class="cover-foot">TODAS LAS GENERACIONES · GEN I - GEN IX</div>
     </div>
   </div>
+  <button id="start-btn" class="start-btn display-font">COMENZAR A COMPLETAR ▸</button>
+  </div>
 
-  <!-- ================= DEVICE ================= -->
+  <!-- ================= VISTA: SELECCIÓN DE GENERACIÓN ================= -->
+  <div id="view-genselect" class="view" style="display:none;">
+    <div class="gen-header">
+      <button id="back-to-cover" class="back-btn">‹ Portada</button>
+      <span class="display-font gen-header-title">ELIGE GENERACIÓN</span>
+    </div>
+    <div class="gen-grid" id="gen-grid"></div>
+  </div>
+
+  <!-- ================= VISTA: DEVICE (Pokédex de la generación elegida) ================= -->
+  <div id="view-dex" class="view" style="display:none;">
   <div class="device">
     <div class="device-topbar">
+      <button id="back-to-genselect" class="back-btn back-btn-device">‹</button>
       <div class="lens"></div>
       <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-      <div class="device-title display-font">Pokédex · Kanto</div>
+      <div class="device-title display-font" id="device-title">Pokédex · Kanto</div>
       <button id="login-btn" class="login-btn">🔒 Admin</button>
     </div>
 
@@ -299,6 +367,10 @@
               <span class="card-name display-font" id="f-name">Bulbasaur</span>
             </div>
             <div class="type-row" id="f-types"></div>
+            <label class="caught-check" id="caught-check-wrap">
+              <input type="checkbox" id="caught-check">
+              <span>Capturado / Completado</span>
+            </label>
             <div class="art-box" id="f-art">
               <div class="art-placeholder"><span>📷</span>Toca para subir la imagen</div>
             </div>
@@ -323,6 +395,7 @@
 
   <div class="footer-note">Generación I · Kanto · #001 – #151</div>
   <div class="footer-note" style="color:rgba(212,175,55,0.6); margin-top:4px;">🌐 Espacio público (Firebase): las imágenes que subas las verá cualquiera con este link</div>
+  </div>
 </div>
 
 <!-- ============================================================
@@ -528,10 +601,79 @@ const DETAILS = {
 
 const POKEMON = ALL_POKEMON.map(p => Object.assign({}, p, DETAILS[p.name] || {}));
 
+const GENERATIONS = [
+  { id:1, name:"Generación I", region:"Kanto", available:true },
+  { id:2, name:"Generación II", region:"Johto", available:false },
+  { id:3, name:"Generación III", region:"Hoenn", available:false },
+  { id:4, name:"Generación IV", region:"Sinnoh", available:false },
+  { id:5, name:"Generación V", region:"Teselia", available:false },
+  { id:6, name:"Generación VI", region:"Kalos", available:false },
+  { id:7, name:"Generación VII", region:"Alola", available:false },
+  { id:8, name:"Generación VIII", region:"Galar", available:false },
+  { id:9, name:"Generación IX", region:"Paldea", available:false },
+];
+
+function showView(id){
+  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+  document.getElementById(id).style.display = 'block';
+}
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  showView('view-genselect');
+});
+document.getElementById('back-to-cover').addEventListener('click', () => {
+  showView('view-cover');
+});
+document.getElementById('back-to-genselect').addEventListener('click', () => {
+  showView('view-genselect');
+});
+
+function renderGenGrid(){
+  const grid = document.getElementById('gen-grid');
+  grid.innerHTML = GENERATIONS.map(g => `
+    <div class="gen-card ${g.available ? '' : 'disabled'}" data-gen="${g.id}">
+      <div class="gen-num display-font">${g.id}</div>
+      <div class="gen-info">
+        <div class="gen-name">${g.name}</div>
+        <div class="gen-region">${g.region}</div>
+      </div>
+      <div class="gen-status">${g.available ? 'DISPONIBLE ▸' : 'PRÓXIMAMENTE'}</div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.gen-card:not(.disabled)').forEach(el => {
+    el.addEventListener('click', () => {
+      const genId = parseInt(el.dataset.gen);
+      const gen = GENERATIONS.find(g => g.id === genId);
+      document.getElementById('device-title').textContent = `Pokédex · ${gen.region}`;
+      showView('view-dex');
+    });
+  });
+}
+renderGenGrid();
+
+
 // Las imágenes se guardan de forma PERSISTENTE y PÚBLICA (cualquiera que abra
 // esta página puede verlas y subir nuevas) usando el storage de artifacts.
 const userImages = {};
 let imagesLoaded = false;
+
+// Estado "capturado/completado" por Pokémon, también público y persistente
+const caughtStatus = {};
+
+async function loadCaughtStatus(){
+  try {
+    const snapshot = await db.ref('pokedex_caught').once('value');
+    const data = snapshot.val() || {};
+    for(const num in data){
+      caughtStatus[num] = !!data[num];
+    }
+  } catch(e){
+    console.warn('No se pudo cargar el estado de capturados:', e);
+  }
+  renderCard();
+  renderList();
+}
 
 async function loadAllImages(){
   try {
@@ -600,6 +742,8 @@ function renderCard(){
     `<span class="type-badge" style="background:${TYPE_COLORS[t]||'#777'}">${t}</span>`
   ).join('');
 
+  document.getElementById('caught-check').checked = !!caughtStatus[p.num];
+
   const statsEl = document.getElementById('b-stats');
   if(p.stats){
     statsEl.innerHTML = Object.entries(p.stats).map(([label,val]) => `
@@ -628,13 +772,22 @@ function renderList(){
     const idx = POKEMON.indexOf(p);
     const dots = p.types.map(t => `<span class="dot-type" style="background:${TYPE_COLORS[t]||'#777'}"></span>`).join('');
     const thumb = userImages[p.num] ? `<img src="${userImages[p.num]}">` : "";
-    return `<div class="list-item ${idx===current?'selected':''}" data-idx="${idx}">
+    const caught = !!caughtStatus[p.num];
+    return `<div class="list-item ${idx===current?'selected':''} ${caught?'caught':''}" data-idx="${idx}">
+      <input type="checkbox" class="list-check" data-num="${p.num}" ${caught?'checked':''}>
       <div class="list-thumb">${thumb}</div>
       <span class="list-num display-font">#${p.num}</span>
       <span class="list-name">${p.name}</span>
       <span class="list-types">${dots}</span>
     </div>`;
   }).join('');
+
+  listEl.querySelectorAll('.list-check').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleCaught(el.dataset.num, el.checked);
+    });
+  });
 
   listEl.querySelectorAll('.list-item').forEach(el => {
     el.addEventListener('click', () => {
@@ -700,6 +853,31 @@ document.getElementById('f-art').addEventListener('click', (e) => {
   document.getElementById('file-input').click();
 });
 
+async function toggleCaught(num, value){
+  if(!isAdmin){
+    alert('Solo el administrador puede marcar Pokémon como capturados. Toca "🔒 Admin" para iniciar sesión.');
+    renderCard();
+    renderList();
+    return;
+  }
+  caughtStatus[num] = value;
+  renderCard();
+  renderList();
+  try {
+    await db.ref('pokedex_caught/' + num).set(value);
+  } catch(e){
+    console.warn('No se pudo guardar el estado de capturado:', e);
+  }
+}
+
+document.getElementById('caught-check-wrap').addEventListener('click', (e) => {
+  e.stopPropagation();
+});
+document.getElementById('caught-check').addEventListener('change', (e) => {
+  const num = POKEMON[current].num;
+  toggleCaught(num, e.target.checked);
+});
+
 document.getElementById('file-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if(!file) return;
@@ -744,6 +922,7 @@ renderCard();
 renderFilters();
 renderList();
 loadAllImages().catch(e => console.warn('Fallo cargando imágenes:', e));
+loadCaughtStatus().catch(e => console.warn('Fallo cargando estado de capturados:', e));
 </script>
 </body>
 </html>
